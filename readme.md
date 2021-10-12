@@ -30,11 +30,17 @@ The `Redeem` module will extract all ADA and every CNFT, and send it back to the
 ## Arguments ##
 
 `-count`: The number of wallets and addresses to [Build, Verify, Send, Redeem] from.
+
 `-build`: Set the build flag to execute the `Build` module.
+
 `-verify`: Set the verify flag to execute the `Verify` module.
+
 `-cost`: The price in ADA that the `Send` module will send to the `-receiver` address.
+
 `-receiver`: The address ADA is sent to when executing the `Send` module.
+
 `-wallet`: The address ADA and CNFTs are sent to when executing the `Redeem` module.
+
 `-safemode`: Set the `Send` or `Receive` mode to run in safety mode, prompting for approval before sending transactions. This will allow for extra time to double-check the command-line arguments to ensure ADA is sent to the correct location.
 
 ## Examples ##
