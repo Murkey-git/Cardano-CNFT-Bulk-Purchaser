@@ -207,7 +207,7 @@ switch($paramSetName)
       $signFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$i.sign")
       $sendfee = 0
       $sendoutput = 0
-      $lovelace = ($cost * 1000000).ToString("N0").Replace(",","")
+      $lovelace = [int64][System.Math]::Truncate($cost * 1000000)
       $address = type $addressFile
       
       # If the cached UTXO file exists, use this for faster performance
