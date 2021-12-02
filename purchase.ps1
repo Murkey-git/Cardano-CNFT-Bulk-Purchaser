@@ -82,10 +82,14 @@ switch($paramSetName)
     for ($i = 1; $i -le $count; $i = $i + 1)
     {
       $verifyKeyFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$i.vkey")
+      $verifyStakeKeyFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$i.vskey")
       $signKeyFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$i.skey")
+      $signStakeKeyFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$i.sskey")
       $addressFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$i.addr")
       if ([System.IO.File]::Exists($verifyKeyFile) -eq $true) { throw "The file [$verifyKeyFile] already exists. Please ensure all [$PAYMENT.*] files are cleared of any funds and do not exist before performing the build operation." }
+      if ([System.IO.File]::Exists($verifyStakeKeyFile) -eq $true) { throw "The file [$verifyStakeKeyFile] already exists. Please ensure all [$PAYMENT.*] files are cleared of any funds and do not exist before performing the build operation." }
       if ([System.IO.File]::Exists($signKeyFile) -eq $true) { throw "The file [$signKeyFile] already exists. Please ensure all [$PAYMENT.*] files are cleared of any funds and do not exist before performing the build operation." }
+      if ([System.IO.File]::Exists($signStakeKeyFile) -eq $true) { throw "The file [$signStakeKeyFile] already exists. Please ensure all [$PAYMENT.*] files are cleared of any funds and do not exist before performing the build operation." }
       if ([System.IO.File]::Exists($addressFile) -eq $true) { throw "The file [$addressFile] already exists. Please ensure all [$PAYMENT.*] files are cleared of any funds and do not exist before performing the build operation." }
     }
     
@@ -93,10 +97,13 @@ switch($paramSetName)
     for ($i = 1; $i -le $count; $i = $i + 1)
     {
       $verifyKeyFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$i.vkey")
+      $verifyStakeKeyFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$i.vskey")
       $signKeyFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$i.skey")
+      $signStakeKeyFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$i.sskey")
       $addressFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$i.addr")
       &$CLI_PATH address key-gen --verification-key-file "$verifyKeyFile" --signing-key-file "$signKeyFile"
-      &$CLI_PATH address build --payment-verification-key-file "$verifyKeyFile" --out-file "$addressFile" --mainnet
+      &$CLI_PATH stake-address key-gen --verification-key-file "$verifyStakeKeyFile" --signing-key-file "signStakeKeyFile"
+      &$CLI_PATH address build --payment-verification-key-file "$verifyKeyFile" --stake-verification-key-file "$verifyStakeKeyFile" --out-file "$addressFile" --mainnet
       $address = type $addressFile
       Write-Host "Wallet Address ${i}: $address"
     }
