@@ -23,6 +23,10 @@ The `Verify` module checks the current contents of each generated address for ma
 
 The `Send` module will send `X` ADA from each generated wallet to the specified receiver wallet. This module will be used to purchase the CNFT.
 
+### BulkSend ###
+
+The `BulkSend` module will send `X` * `N` ADA from a single generated wallet to the specified bulkreceiver wallet. This module can be used to purchase CNFTs by sending multple output-transactions from a single wallet.
+
 ### Redeem ###
 
 The `Redeem` module will extract all ADA and every CNFT, and send it back to the specified wallet.
@@ -38,6 +42,10 @@ The `Redeem` module will extract all ADA and every CNFT, and send it back to the
 `-cost`: The price in ADA that the `Send` module will send to the `-receiver` address.
 
 `-receiver`: The address ADA is sent to when executing the `Send` module.
+
+`-bulkcost`: The price in ADA that the `BulkSend` module will send to the `-bulkreceiver` address in each output transaction.
+
+`-bulkreceiver`: The address ADA is sent to when executing the `BulkSend` module.
 
 `-wallet`: The address ADA and CNFTs are sent to when executing the `Redeem` module.
 
@@ -82,6 +90,19 @@ Using Cache File
 [10-11-2021 20:33:17:994] Transaction successfully submitted.
 Using Cache File
 [10-11-2021 20:33:18:134] Transaction successfully submitted.
+```
+
+--- BulkSend 3 ADA to a CNFT address, using 3 output transactions of 1 ADA each ---
+
+```
+.\purchase.ps1 -count 3 -bulkcost 1 -bulkreceiver addr1zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz -safemode
+
+Warning!
+Are you sure you want to proceed sending [1*3] ADA to the following address:
+[addr1zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz]?
+[Y] Yes  [N] No  [?] Help (default is "N"): Y
+Using Cache File
+[10-11-2021 20:33:17:838] Transaction successfully submitted.
 ```
 
 --- Verify wallet contents received UTXOs ---
