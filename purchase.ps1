@@ -5,6 +5,8 @@ param
   [Parameter(Position=1,Mandatory=$false)][switch]$safemode,
   [Parameter(ParameterSetName='Send',Position=1,Mandatory=$true)][decimal]$cost=0,
   [Parameter(ParameterSetName='Send',Position=2,Mandatory=$true)][string]$receiver,
+  [Parameter(ParameterSetName='BulkSend',Position=1,Mandatory=$true)][decimal]$bulkcost=0,
+  [Parameter(ParameterSetName='BulkSend',Position=2,Mandatory=$true)][string]$bulkreceiver,
   [Parameter(ParameterSetName='Build',Position=1,Mandatory=$true)][switch]$build,
   [Parameter(ParameterSetName='Verify',Position=1,Mandatory=$true)][switch]$verify,
   [Parameter(ParameterSetName='Redeem',Position=1,Mandatory=$true)][string]$wallet
@@ -43,6 +45,7 @@ switch($paramSetName)
     Write-Host "* [Build]: Build [-count N] number of new addresses and payment keys used for purchasing"
     Write-Host "* [Verify]: Verify [-count N] the contents of each generated address, to ensure it has the appropriate funds. The UTXO will be cached to optimize [Send] mode speed"
     Write-Host "* [Send]: Send [-count N -cost X -receiver addr] {X} ADA to the specified receiver {addr}, using {N} generated addresses"
+    Write-Host "* [BulkSend]: Send [-count N -bulkcost X -bulkreceiver addr] {N*X} ADA to the specified receiver {addr}, using {N} transaction-outputs from a single generated address"
     Write-Host "* [Redeem]: Redeem [-count N -wallet addr] all ADA and purchased NFT back to owner wallet {addr}, using {N} generated addresses"
     Write-Host "* "
     Write-Host "* Arguments:" -ForegroundColor Gray
@@ -51,6 +54,8 @@ switch($paramSetName)
     Write-Host "* -verify: Set the verify flag to execute [Verify] mode"
     Write-Host "* -cost: The price in ADA that the [Send] mode will send to [-receiver] address"
     Write-Host "* -receiver: The address to send ADA to in [Send] mode - e.g., the wallet address for purchasing NFTs"
+    Write-Host "* -bulkcost: The price in ADA that the [BulkSend] mode will send in each transaction output to [-bulkreceiver] address"
+    Write-Host "* -bulkreceiver: The address to send ADA to in [BulkSend] mode - e.g., the wallet address for purchasing NFTs"
     Write-Host "* -wallet: The address to send ADA to in [Receive] mode - e.g., your own wallet for redeeming the NFTs and any dust"
     Write-Host "* -safemode: Set the [Send] or [Receive] mode to run in safety mode, and prompt for approval before sending assets"
     Write-Host "* ";
@@ -59,6 +64,9 @@ switch($paramSetName)
     Write-Host "* -- Verify That Wallets Are Populated And Cache UTXOs --" -ForegroundColor Gray
     Write-Host "* .\$programName -count 3 -verify" 
     Write-Host "* .\$programName -count 3 -cost 15 -receiver addr1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    Write-Host "* ----- Alternative Sending Method -----" -ForegroundColor Gray
+    Write-Host "* ----- Will send 15 ADA to addr1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa in 3 transaction outputs from a single wallet, for a total of 45 ADA cost -----" -ForegroundColor Gray
+    Write-Host "* .\$programName -count 3 -bulkcost 15 -bulkreceiver addr1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"    
     Write-Host "* -- Verify That Wallets Received NFTs --" -ForegroundColor Gray
     Write-Host "* .\$programName -count 3 -verify"
     Write-Host "* .\$programName -count 3 -safemode -wallet addr1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
@@ -152,6 +160,7 @@ switch($paramSetName)
       }
       
       # For each UTXO in the address, write out the transaction hash, ix, amount, and any tokens if they exist
+      $cached = $false
       for ($x = 1; $x -lt $utxo.Count; $x = $x + 1)
       {
         $utxoData = $utxo[$x].Trim()
@@ -168,10 +177,12 @@ switch($paramSetName)
         
         Write-Host "[$address] UTXO Data: Hash=$txHash, Ix=$txIx, Amount=$($amount/1000000) ADA$($tokenData)"
         
-        # Cache the first UTXO to disk, which will be used during [Send] mode for purchasing a CNFT
-        if ($x -eq 1)
+        # Cache the first UTXO with no token data to disk, which will be used during [Send/BulkSend] mode for purchasing a CNFT
+        if ($tokenData -eq "" -and -not $cached)
         {
           "$txHash,$txIx,$amount" | Out-File -Encoding "ASCII" "$cacheFile"
+          Write-Host "[Caching]: $txHash,$txIx,$amount"
+          $cached = $true;
         }
       }
     }
@@ -258,6 +269,120 @@ switch($paramSetName)
       $result = &$CLI_PATH transaction submit --tx-file "$signFile" --mainnet
       Write-Host "[$(Get-Date -Format 'MM/dd/yyyy HH:mm:ss:fff')] $result"
     }
+    break;
+  }
+  "BulkSend" 
+  {
+    # Prompt the user if they passed in the -safemode flag so they can double-check any details before proceeding
+    if ($safemode -eq $true) 
+    {
+      $question = "Are you sure you want to proceed sending [$bulkcost*$count] ADA to the following address: [$bulkreceiver]?"
+      $decision = $Host.UI.PromptForChoice($TITLE, $question, $CHOICES, 1)
+      if ($decision -eq 1)
+      {
+        Write-Host "Aborting operation";
+        return;
+      }
+    }
+    
+    # Create the necessary protocol.json file needed for calculating the minimum fees
+    $protocolFile = [System.IO.Path]::Combine($BASE_PATH, "protocol.json")
+    &$CLI_PATH query protocol-parameters --mainnet --out-file "$protocolFile"
+    
+    # Check that the appropriate key and address files exist
+    $one = "1"
+    $signKeyFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$one.skey")
+    $addressFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$one.addr")
+    if ([System.IO.File]::Exists($signKeyFile) -eq $false) { throw "The file [$signKeyFile] does not exist. Please ensure all [$PAYMENT$one.*] files are generated using the build operation and funded with ADA." }
+    if ([System.IO.File]::Exists($addressFile) -eq $false) { throw "The file [$addressFile] does not exist. Please ensure all [$PAYMENT$one.*] files are generated using the build operation and funded with ADA." }
+    
+    # Send the $bulkcost*$count amount of ADA to the $bulkreceiver address, using $count transacount outputs of $bulkcost each
+    
+    $signKeyFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$one.skey")
+    $addressFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$one.addr")
+    $cacheFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$one.cache")
+    $draftFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$one.draft")
+    $signFile = [System.IO.Path]::Combine($BASE_PATH, "$PAYMENT$one.sign")
+    $sendfee = 0
+    $sendoutput = 0
+    $lovelace = [int64][System.Math]::Truncate($bulkcost * 1000000)
+    $totalLovelace = $lovelace * $count
+    $address = type $addressFile
+    
+    # If the cached UTXO file exists, use this for faster performance
+    if ([System.IO.File]::Exists($cacheFile) -eq $true) 
+    {
+      $utxo = type $cacheFile
+      $utxo = $utxo -split ","
+      $txHash = $utxo[0]
+      $txIx = $utxo[1]
+      $amount = $utxo[2]
+      Write-Host "Using Cache File"
+    }
+    
+    # If there is no cache file, query the UTXO from the blockchain
+    else 
+    {
+      Write-Host "Querying Chain"
+      $utxo = &$CLI_PATH query utxo --address $address --mainnet
+      $utxo = $utxo.Split("-", [System.StringSplitOptions]::RemoveEmptyEntries)
+      if ($utxo.Count -le 1) 
+      { 
+        throw "The address [$address] from [$addressFile] has no UTXOs. Please fund the address and re-run the verify step." 
+      }
+      
+      $outputFound = $false
+      for ($x = 1; $x -lt $utxo.Count; $x = $x + 1)
+      {
+        $utxoData = $utxo[$x].Trim()
+        $utxoData = $utxoData -replace "\s{2,}","{ZZ}"
+        $utxoData = $utxoData -split "{zz}"
+        $txHash = $utxoData[0]
+        $txIx = $utxoData[1]
+        $amount = $utxoData[2].Split(" ")[0].ToString()
+        $tokenData = (((($utxoData[2] -replace "TxOutDatumHashNone","") -split "lovelace")[1] -replace "\+","") -replace "^\s+","").Trim()
+        
+        if ($tokenData -ne "")
+        {
+          continue;
+        }
+        
+        # Cache the first UTXO with no token data to disk, which will be used during [BulkSend] mode for purchasing a CNFT
+        if ([int64]$amount -ge [int64]($totalLovelace + 2000000))
+        {
+          $outputFound = $true;
+          break;
+        }
+      }
+      
+      if (-not $outputFound)
+      {
+        throw "The address [$address] from [$addressFile] has no valid UTXOs for the current inputs. Please fund the address with a UTXO of at least $(($bulkcost*$count)+2)ADA and re-run the command." 
+      }
+    }
+    
+    $txOut = @()
+    for ($x = 0; $x -lt $count; $x = $x + 1)
+    {
+      $txOut += "--tx-out"
+      $txOut += "$($bulkreceiver)+$($lovelace)"
+    }
+    
+    # Build raw transaction with empty fee parameters, and calculate the minimum fee
+    &$CLI_PATH transaction build-raw --tx-in "$txHash#$txIx"$txOut --tx-out "$address+$sendoutput" --fee $sendfee --out-file "$draftFile"
+    $sendfee=(&$CLI_PATH transaction calculate-min-fee --tx-body-file "$draftFile" --tx-in-count 1 --tx-out-count $($count+1) --witness-count 1 --mainnet --protocol-params-file "$protocolFile").split(" ")[0]
+    $sendoutput = $amount-$sendfee-$totalLovelace
+    
+    # Using the new calculated minimum fee, build a new raw transaction and calculate minimum fee again as transaction size has slightly changed
+    &$CLI_PATH transaction build-raw --tx-in "$txHash#$txIx"$txOut --tx-out "$address+$sendoutput" --fee $sendfee --out-file "$draftFile"
+    $sendfee2=(&$CLI_PATH transaction calculate-min-fee --tx-body-file "$draftFile" --tx-in-count 1 --tx-out-count $($count+1) --witness-count 1 --mainnet --protocol-params-file "$protocolFile").split(" ")[0]
+    $sendoutput = $amount-$sendfee2-$totalLovelace
+    
+    # sign the transaction and send
+    &$CLI_PATH transaction sign --signing-key-file "$signKeyFile" --mainnet --tx-body-file "$draftFile" --out-file "$signFile"
+    $result = &$CLI_PATH transaction submit --tx-file "$signFile" --mainnet
+    Write-Host "[$(Get-Date -Format 'MM/dd/yyyy HH:mm:ss:fff')] $result"
+
     break;
   }
   "Redeem"
