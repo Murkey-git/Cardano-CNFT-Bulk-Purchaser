@@ -169,7 +169,7 @@ switch($paramSetName)
         $txHash = $utxoData[0]
         $txIx = $utxoData[1]
         $amount = $utxoData[2].Split(" ")[0].ToString()
-        $tokenData = (((($utxoData[2] -replace "TxOutDatumHashNone","") -split "lovelace")[1] -replace "\+","") -replace "^\s+","").Trim()
+        $tokenData = (((($utxoData[2] -replace "TxOutDatumNone","") -split "lovelace")[1] -replace "\+","") -replace "^\s+","").Trim()
         if ($tokenData -ne "")
         {
           $tokenData = ", Tokens=[$tokenData]"
@@ -340,7 +340,7 @@ switch($paramSetName)
         $txHash = $utxoData[0]
         $txIx = $utxoData[1]
         $amount = $utxoData[2].Split(" ")[0].ToString()
-        $tokenData = (((($utxoData[2] -replace "TxOutDatumHashNone","") -split "lovelace")[1] -replace "\+","") -replace "^\s+","").Trim()
+        $tokenData = (((($utxoData[2] -replace "TxOutDatumNone","") -split "lovelace")[1] -replace "\+","") -replace "^\s+","").Trim()
         
         if ($tokenData -ne "")
         {
@@ -438,7 +438,7 @@ switch($paramSetName)
       for ($x = 1; $x -lt $utxo.Count; $x = $x + 1)
       {
         $utxoChunk = $utxo[$x].Trim()
-        $utxoChunk =(($utxoChunk -replace "\s{2,}","{ZZ}") -split "TxOutDatumHashNone")
+        $utxoChunk =(($utxoChunk -replace "\s{2,}","{ZZ}") -split "TxOutDatumNone")
         $utxoChunk = $utxoChunk -split "{ZZ}"
         $txIn += "--tx-in"
         $txIn += """$($utxoChunk[0])#$($utxoChunk[1])"""
