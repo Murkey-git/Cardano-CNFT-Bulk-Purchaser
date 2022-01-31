@@ -165,7 +165,7 @@ switch($paramSetName)
       {
         $utxoData = $utxo[$x].Trim()
         $utxoData = $utxoData -replace "\s{2,}","{ZZ}"
-        $utxoData = $utxoData -split "{zz}"
+        $utxoData = $utxoData -split "{ZZ}"
         $txHash = $utxoData[0]
         $txIx = $utxoData[1]
         $amount = $utxoData[2].Split(" ")[0].ToString()
@@ -247,7 +247,7 @@ switch($paramSetName)
         if ($utxo.Count -le 1) { throw "The address [$address] from [$addressFile] has no UTXOs. Please fund the address and re-run the verify step." }
         $utxo = $utxo[1].Trim()
         $utxo = $utxo -replace "\s{2,}","{ZZ}"
-        $utxo = $utxo -split "{zz}"
+        $utxo = $utxo -split "{ZZ}"
         $txHash = $utxo[0]
         $txIx = $utxo[1]
         $amount = ($utxo[2] -split " ")[0]
@@ -336,7 +336,7 @@ switch($paramSetName)
       {
         $utxoData = $utxo[$x].Trim()
         $utxoData = $utxoData -replace "\s{2,}","{ZZ}"
-        $utxoData = $utxoData -split "{zz}"
+        $utxoData = $utxoData -split "{ZZ}"
         $txHash = $utxoData[0]
         $txIx = $utxoData[1]
         $amount = $utxoData[2].Split(" ")[0].ToString()
@@ -400,6 +400,7 @@ switch($paramSetName)
     }
     
     $protocolFile = [System.IO.Path]::Combine($BASE_PATH, "protocol.json")
+    &$CLI_PATH query protocol-parameters --mainnet --out-file "$protocolFile"
     
     # From 1 to $count, check that the appropriate key and address files exist
     for ($i = 1; $i -le $count; $i = $i + 1)
@@ -438,18 +439,21 @@ switch($paramSetName)
       for ($x = 1; $x -lt $utxo.Count; $x = $x + 1)
       {
         $utxoChunk = $utxo[$x].Trim()
-        $utxoChunk =(($utxoChunk -replace "\s{2,}","{ZZ}") -split "TxOutDatumNone")
+        $utxoChunk = (($utxoChunk -replace "\s{2,}","{ZZ}") -split "TxOutDatumNone")
         $utxoChunk = $utxoChunk -split "{ZZ}"
         $txIn += "--tx-in"
         $txIn += """$($utxoChunk[0])#$($utxoChunk[1])"""
         $txData = $utxoChunk[2] -split " "
         $funds += $txData[0]
         $lovelace += $txData[0]
-        if ($txData.Length -gt 4)
+        $tokenData = ((($utxoChunk[2] -split "lovelace")[1] -replace "\+","") -replace "^\s+","").Trim()
+        $tokenData = (($tokenData -replace "\s{2,}","{ZZ}") -split "{ZZ}")
+        for ($t = 0; $t -lt $tokenData.Count; $t = $t + 1)
         {
-          $assetCount = $txData[3]
-          $assetInfo = $txData[4]
-          $txOutAssets += "+""$assetCount $assetInfo"""
+          if ($tokenData[$t] -ne "")
+          {
+            $txOutAssets += "+""$($tokenData[$t])"""
+          }
         }
       }
         
